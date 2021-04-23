@@ -105,7 +105,7 @@ def init_data(nodes_list):
     nodes_data = {}
 
     for node_desc in nodes_list:
-         print(node_desc)
+         #print(node_desc)
          end_id = node_desc.index(" -> ") #intentionally throw error if this isn't present
          nid = node_desc[0:end_id]
          outgoing_nodes = node_desc[end_id+4:len(node_desc)+1].rstrip()
@@ -212,6 +212,22 @@ def find_eulerian_path(nodes_list, kmer_len, read_distance):
 
     return cycle_path
 
+def reconstruct_dna_from_read_pair_list(read_pair_list, kmer_len, distance):
+    read_pair = read_pair_list[0].split("|")
+    strands = ["",""]
+    for idx in [0,1]:
+        strands[idx] = read_pair[idx]
+    for i in range(1, len(read_pair_list)):
+        read_pair = read_pair_list[i].split("|")
+        for idx in [0,1]:
+            strands[idx] += read_pair[idx][kmer_len-1:kmer_len]
+    #print(strands[0])
+    #print(strands[1])
+    follow_strand_suffix = strands[1][len(strands[1])-kmer_len-distance:len(strands[1])]
+    #print("      " + follow_strand_suffix)
+    return strands[0] + follow_strand_suffix
+
+
 if __name__ == "__main__":
     start = time.process_time()
 
@@ -241,9 +257,12 @@ if __name__ == "__main__":
 
     node_lead_follow_structure = build_fragment_graph(read_pairs, kmer_len, distance)
     lead_follow_list = node_lead_follow_pairs_to_list(node_lead_follow_structure)
-    print(lead_follow_list)
-    path = find_eulerian_path(lead_follow_list, kmer_len, distance)
-    print("->".join(path))
+    #print(lead_follow_list)
+    read_pair_path = find_eulerian_path(lead_follow_list, kmer_len, distance)
+    #print("->".join(read_pair_path))
+    full_dna = reconstruct_dna_from_read_pair_list(read_pair_path, kmer_len, distance)
+    print(full_dna)
+
 
     end = time.process_time()
     #print("Time: {0}".format(end-start))
