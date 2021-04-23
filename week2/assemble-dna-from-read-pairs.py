@@ -56,12 +56,14 @@ class NodeInfo:
                                     "  out:" + o
         return outbound
 
-def print_node_lead_follow_pairs(node_lead_follow_list):
-    for kvp in node_lead_follow_list.items():
+def node_lead_follow_pairs_to_list(node_lead_follow_lookup):
+    out = []
+    for kvp in node_lead_follow_lookup.items():
         #print(kvp[0])
         for read_pair in kvp[1].leadingNodes:
             if len(kvp[1].followingNodes) > 0:
-                print("{0} -> {1}".format(read_pair, ",".join(kvp[1].followingNodes)))
+                out.append("{0} -> {1}".format(read_pair, ",".join(kvp[1].followingNodes)))
+    return out
 
 def get_suffix_key_from_read_pair(read_pair, kmer_len):
     keys = read_pair.split("|")
@@ -74,28 +76,28 @@ def get_prefix_key_from_read_pair(read_pair, kmer_len):
     return key
 
 def build_fragment_graph(read_pairs, kmer_len, read_distance):
-    node_lead_follow_list = {}
+    node_lead_follow_lookup = {}
 
     for i in range(len(read_pairs)):
         read_pair = read_pairs[i]
         read_pair_suffix = get_suffix_key_from_read_pair(read_pair, kmer_len)
         read_pair_prefix = get_prefix_key_from_read_pair(read_pair, kmer_len)
 
-        if read_pair_suffix not in node_lead_follow_list:
-            node_lead_follow_list[read_pair_suffix] = NodeLeadFollowList()
-        if read_pair not in node_lead_follow_list[read_pair_suffix].leadingNodes:
-            node_lead_follow_list[read_pair_suffix].leadingNodes.append(read_pair)
+        if read_pair_suffix not in node_lead_follow_lookup:
+            node_lead_follow_lookup[read_pair_suffix] = NodeLeadFollowList()
+        if read_pair not in node_lead_follow_lookup[read_pair_suffix].leadingNodes:
+            node_lead_follow_lookup[read_pair_suffix].leadingNodes.append(read_pair)
 
-        if read_pair_prefix not in node_lead_follow_list:
-            node_lead_follow_list[read_pair_prefix] = NodeLeadFollowList()
-        if read_pair not in node_lead_follow_list[read_pair_prefix].followingNodes:
-            node_lead_follow_list[read_pair_prefix].followingNodes.append(read_pair)
+        if read_pair_prefix not in node_lead_follow_lookup:
+            node_lead_follow_lookup[read_pair_prefix] = NodeLeadFollowList()
+        if read_pair not in node_lead_follow_lookup[read_pair_prefix].followingNodes:
+            node_lead_follow_lookup[read_pair_prefix].followingNodes.append(read_pair)
 
         #print(".." + read_pair)
         #print(".." + read_pair_suffix)
         #print(".." + read_pair_prefix)
-        #print_node_lead_follow_pairs(node_lead_follow_list)        
-    return node_lead_follow_list
+        #print_node_lead_follow_pairs(node_lead_follow_lookup)        
+    return node_lead_follow_lookup
 
 
 
@@ -103,6 +105,7 @@ def init_data(nodes_list):
     nodes_data = {}
 
     for node_desc in nodes_list:
+         print(node_desc)
          end_id = node_desc.index(" -> ") #intentionally throw error if this isn't present
          nid = node_desc[0:end_id]
          outgoing_nodes = node_desc[end_id+4:len(node_desc)+1].rstrip()
@@ -177,7 +180,7 @@ def restart_cycle(nodes_data, path):
     #print("restarting {0} {1}".format(can_restart, restart_node_key))
     return can_restart, restart_node_key, new_path
 
-def find_eulerian_path(nodes_list):
+def find_eulerian_path(nodes_list, kmer_len, read_distance):
     nodes_data, added_path = init_data(nodes_list)
 
     cycle_path = []
@@ -236,35 +239,11 @@ if __name__ == "__main__":
         except ValueError:
             kmer_len = int(len(read_pairs[0])-1 / 2)
 
-    node_lead_follow_list = build_fragment_graph(read_pairs, kmer_len, distance)
-    print_node_lead_follow_pairs(node_lead_follow_list)
-    path = find_eulerian_path(node_lead_follow_list, kmer_len, distance)
+    node_lead_follow_structure = build_fragment_graph(read_pairs, kmer_len, distance)
+    lead_follow_list = node_lead_follow_pairs_to_list(node_lead_follow_structure)
+    print(lead_follow_list)
+    path = find_eulerian_path(lead_follow_list, kmer_len, distance)
     print("->".join(path))
-
-    end = time.process_time()
-    #print("Time: {0}".format(end-start))
-#! /bin/python3
-
-import sys
-import time
-import random
-
-
-if __name__ == "__main__":
-    start = time.process_time()
-   
-    random.seed(0)
-
-    if len(sys.argv) < 2:
-        print("Usage: expect file input of format: <string_list_of_nodes>.\n" \
-              "Node format is [parent] -> [child1],[child2],...,[childN]")
-
-    with open(sys.argv[1]) as fl:
-        nodes = fl.readlines()
-
-    #print(nodes)
-
-    path = find_eulerian_path(nodes)
 
     end = time.process_time()
     #print("Time: {0}".format(end-start))
