@@ -13,4 +13,3 @@ GGG
 GGA
 TGT
 GTT
-

@@ -4,6 +4,10 @@ import sys
 import time
 import random 
 
+LEAD_FOLLOW_NODE_DELIMITER = " -> "
+NODE_LIST_DELIMITER = ","
+
+
 class NodeLeadFollowList:
 
     def __init__(self):
@@ -37,8 +41,8 @@ class NodeInfo:
     def next_trip_out(self):
         self.last_cycle_debug_str = "   " + \
                                     " id:" + self.node_id + \
-                                    " all:" + ",".join(self.outgoing_nodes) + \
-                                    " unused:" + ",".join(self.unused_outgoing_nodes)
+                                    " all:" + NODE_LIST_DELIMITER.join(self.outgoing_nodes) + \
+                                    " unused:" + NODE_LIST_DELIMITER.join(self.unused_outgoing_nodes)
 
         outbound = None
         o_idx = 0
@@ -51,8 +55,8 @@ class NodeInfo:
             o = "None"
         self.last_cycle_debug_str+= "..." + \
                                     " id:" + self.node_id + \
-                                    " all:" + ",".join(self.outgoing_nodes) + \
-                                    " unused:" + ",".join(self.unused_outgoing_nodes) + \
+                                    " all:" + NODE_LIST_DELIMITER.join(self.outgoing_nodes) + \
+                                    " unused:" + NODE_LIST_DELIMITER.join(self.unused_outgoing_nodes) + \
                                     "  out:" + o
         return outbound
 
@@ -60,9 +64,9 @@ def node_lead_follow_pairs_to_list(node_lead_follow_lookup):
     out = []
     for kvp in node_lead_follow_lookup.items():
         #print(kvp[0])
-        for read_pair in kvp[1].leadingNodes:
+        for edge_lead_node in kvp[1].leadingNodes:
             if len(kvp[1].followingNodes) > 0:
-                out.append("{0} -> {1}".format(read_pair, ",".join(kvp[1].followingNodes)))
+                out.append("{0} -> {1}".format(edge_lead_node, NODE_LIST_DELIMITER.join(kvp[1].followingNodes)))
     return out
 
 def get_suffix_key_from_read_pair(read_pair, kmer_len):
@@ -75,27 +79,39 @@ def get_prefix_key_from_read_pair(read_pair, kmer_len):
     key = keys[0][0:kmer_len-1] + "|" + keys[1][0:kmer_len-1]
     return key
 
-def build_fragment_graph(read_pairs, kmer_len, read_distance):
+def get_suffix_key_from_kmer(kmer, kmer_len):
+    key = kmer[1:kmer_len]
+    return key
+
+def get_prefix_key_from_kmer(kmer, kmer_len):
+    key = kmer[0:kmer_len-1]
+    return key
+
+def build_fragment_graph(fragments, fragments_are_read_pairs, kmer_len, read_distance):
     node_lead_follow_lookup = {}
 
-    for i in range(len(read_pairs)):
-        read_pair = read_pairs[i]
-        read_pair_suffix = get_suffix_key_from_read_pair(read_pair, kmer_len)
-        read_pair_prefix = get_prefix_key_from_read_pair(read_pair, kmer_len)
+    for i in range(len(fragments)):
+        fragment = fragments[i]
+        if fragments_are_read_pairs:
+            fragment_suffix = get_suffix_key_from_read_pair(fragment, kmer_len)
+            fragment_prefix = get_prefix_key_from_read_pair(fragment, kmer_len)
+        else:
+            fragment_suffix = get_suffix_key_from_kmer(fragment, kmer_len)
+            fragment_prefix = get_prefix_key_from_kmer(fragment, kmer_len)
 
-        if read_pair_suffix not in node_lead_follow_lookup:
-            node_lead_follow_lookup[read_pair_suffix] = NodeLeadFollowList()
-        if read_pair not in node_lead_follow_lookup[read_pair_suffix].leadingNodes:
-            node_lead_follow_lookup[read_pair_suffix].leadingNodes.append(read_pair)
+        if fragment_suffix not in node_lead_follow_lookup:
+            node_lead_follow_lookup[fragment_suffix] = NodeLeadFollowList()
+        if fragment not in node_lead_follow_lookup[fragment_suffix].leadingNodes:
+            node_lead_follow_lookup[fragment_suffix].leadingNodes.append(fragment)
 
-        if read_pair_prefix not in node_lead_follow_lookup:
-            node_lead_follow_lookup[read_pair_prefix] = NodeLeadFollowList()
-        if read_pair not in node_lead_follow_lookup[read_pair_prefix].followingNodes:
-            node_lead_follow_lookup[read_pair_prefix].followingNodes.append(read_pair)
+        if fragment_prefix not in node_lead_follow_lookup:
+            node_lead_follow_lookup[fragment_prefix] = NodeLeadFollowList()
+        if fragment not in node_lead_follow_lookup[fragment_prefix].followingNodes:
+            node_lead_follow_lookup[fragment_prefix].followingNodes.append(fragment)
 
-        #print(".." + read_pair)
-        #print(".." + read_pair_suffix)
-        #print(".." + read_pair_prefix)
+        #print(".." + fragment)
+        #print(".." + fragment_suffix)
+        #print(".." + fragment_prefix)
         #print_node_lead_follow_pairs(node_lead_follow_lookup)        
     return node_lead_follow_lookup
 
@@ -106,10 +122,10 @@ def init_data(nodes_list):
 
     for node_desc in nodes_list:
          #print(node_desc)
-         end_id = node_desc.index(" -> ") #intentionally throw error if this isn't present
+         end_id = node_desc.index(LEAD_FOLLOW_NODE_DELIMITER) #intentionally throw error if this isn't present
          nid = node_desc[0:end_id]
          outgoing_nodes = node_desc[end_id+4:len(node_desc)+1].rstrip()
-         nodes_data[nid] = NodeInfo(nid, outgoing_nodes.split(","))
+         nodes_data[nid] = NodeInfo(nid, outgoing_nodes.split(NODE_LIST_DELIMITER))
 
     added_path = None
     for kvp in nodes_data.items():
@@ -137,8 +153,8 @@ def print_state(nodes_data, indent):
     for kvp in nodes_data.items():
         print("{0}{1}-{2}-{3}".format(" " * indent,
                                       kvp[0],
-                                      ",".join(kvp[1].outgoing_nodes),
-                                      ",".join(kvp[1].unused_outgoing_nodes)))
+                                      NODE_LIST_DELIMITER.join(kvp[1].outgoing_nodes),
+                                      NODE_LIST_DELIMITER.join(kvp[1].unused_outgoing_nodes)))
 
 
 def rearrange_cycle(cycle_path, added_path):
@@ -227,10 +243,73 @@ def reconstruct_dna_from_read_pair_list(read_pair_list, kmer_len, distance):
     #print("      " + follow_strand_suffix)
     return strands[0] + follow_strand_suffix
 
+def find_contigs_from_edges(edges_list, kmer_len):
+    incoming_edge_count = {}
+    for edge in edges_list:
+        follow_nodes =edge[edge.index(LEAD_FOLLOW_NODE_DELIMITER)+4:len(edge)].split(NODE_LIST_DELIMITER)
+        for follow_node in follow_nodes:
+            if follow_node not in incoming_edge_count:
+                incoming_edge_count[follow_node] = 0
+            incoming_edge_count[follow_node] += 1
+
+    print(incoming_edge_count)
+
+    contigs_by_final_node = {}
+    unclaimed_follow_nodes = []
+
+    for edge in edges_list:
+        lead_node = edge[0:edge.index(LEAD_FOLLOW_NODE_DELIMITER)]
+        follow_node_list = edge[edge.index(LEAD_FOLLOW_NODE_DELIMITER) + 4: len(edge)]\
+                          .split(NODE_LIST_DELIMITER)
+        lead_node_starts_contig = True
+        if lead_node in incoming_edge_count and incoming_edge_count[lead_node] == 1:
+            lead_node_starts_contig = False
+
+        print("_{0} -> {1}>".format(lead_node, "-".join(follow_node_list)))
+        if lead_node_starts_contig:
+            accounted_for_lead_node = False
+            for follow_node in follow_node_list:
+                if incoming_edge_count[follow_node] == 1:
+                    contigs_by_final_node[follow_node] = [lead_node, final_node]
+                    accounted_for_lead_node = True
+                else:
+                    if follow_node not in contigs_by_final_node:
+                        contigs_by_final_node[follow_node] = [follow_node]
+                        accounted_for_lead_node = True
+                    else:
+                        # this should happen occasisonaly, for nodes with > 1 incoming edge
+                        pass
+        else:
+            if lead_node in contigs_by_final_node:
+                for follow_node in follow_node_list:
+                    if incoming_edge_count[follow_node] == 1:
+                        nlist = contigs_by_final_node[lead_node]
+                        nlist.append(follow_node_list[0])
+                        del contigs_by_final_node[lead_node]
+                        contigs_by_final_node[follow_node_list[0]] = nlist
+                    else:
+                        if follow_node not in contigs_by_final_node:
+                            contigs_by_final_node[follow_node] = [follow_node]
+                        else:
+                            # this should happen occasisonaly, for nodes with > 1 incoming edge
+                            pass
+            else:
+                raise ValueError("This is an unexpected place to end up. {0} -> {1}".format(lead_node, NODE_LIST_DELIMITER.join(follow_node_list)))
+                     
+    contigs = []
+    for kvp in contigs_by_final_node:
+        contig = kvp[1][0]
+        if len(kvp[1]) > 1:
+            for i in range(1,len(kvp[1])):
+                contig += kvp[1][i][kmer_len-2,kmer_len]
+        print(contig)
+        contigs.append(contig)
+    print("--")
+    return contigs
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: one param, filename, format:<int_kmer_len> <int_pair_distance>\n<list_str_of_kmer_read_pairs>.\nPositional switch -n will stop reading 1st line as kmer_len.")
+        print("Usage: one param, filename, format:<int_kmer_len> <int_pair_distance>\n<list_str_of_kmer_edges>.\nPositional switch -n will stop reading 1st line as kmer_len.")
 
     else:
         start = time.process_time()
@@ -241,28 +320,31 @@ if __name__ == "__main__":
                 first_line_is_kmer_len = False
 
         with open(sys.argv[1]) as f:
-            read_pairs = [line.rstrip() for line in f]
+            edges = [line.rstrip() for line in f]
 
         distance = 1
         if not first_line_is_kmer_len:
-            kmer_len = int(len(read_pairs[0]) - 1 / 2)
+            kmer_len = int(len(edges[0]) - 1 / 2)
         else:
             kmer_len = -1
             try:
-                ints = [int(i) for i in read_pairs[0].split(" ")]
+                ints = [int(i) for i in edges[0].split(" ")]
                 kmer_len = ints[0]
                 distance = ints[1]
-                read_pairs.pop(0)
+                edges.pop(0)
             except ValueError:
-                kmer_len = int(len(read_pairs[0])-1 / 2)
+                kmer_len = int(len(edges[0])-1 / 2)
 
-        node_lead_follow_structure = build_fragment_graph(read_pairs, kmer_len, distance)
+        node_lead_follow_structure = build_fragment_graph(edges, False, kmer_len, distance)
         lead_follow_list = node_lead_follow_pairs_to_list(node_lead_follow_structure)
-        #print(lead_follow_list)
-        read_pair_path = find_eulerian_path(lead_follow_list, kmer_len, distance)
+        print(lead_follow_list)
+        contigs_list = find_contigs_from_edges(lead_follow_list, kmer_len)
+        for contig in contigs_list:
+            print(contig)
+        #read_pair_path = find_eulerian_path(lead_follow_list, kmer_len, distance)
         #print("->".join(read_pair_path))
-        full_dna = reconstruct_dna_from_read_pair_list(read_pair_path, kmer_len, distance)
-        print(full_dna)
+        #full_dna = reconstruct_dna_from_read_pair_list(read_pair_path, kmer_len, distance)
+        #print(full_dna)
 
 
         end = time.process_time()
