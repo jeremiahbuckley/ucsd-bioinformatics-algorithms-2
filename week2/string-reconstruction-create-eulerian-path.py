@@ -47,7 +47,10 @@ def init_data(nodes_list):
          end_id = node_desc.index(" -> ") #intentionally throw error if this isn't present
          nid = node_desc[0:end_id]
          outgoing_nodes = node_desc[end_id+4:len(node_desc)+1].rstrip()
-         nodes_data[nid] = NodeInfo(nid, outgoing_nodes.split(","))
+         outgoing_nodes_list = []
+         if outgoing_nodes != "None":
+             outgoing_nodes_list = outgoing_nodes.split(",")
+         nodes_data[nid] = NodeInfo(nid, outgoing_nodes_list)
 
     added_path = None
     for kvp in nodes_data.items():

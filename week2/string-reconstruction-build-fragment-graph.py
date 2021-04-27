@@ -21,8 +21,10 @@ def print_graph(graph):
     for kvp in graph.items():
         #print(kvp[0])
         for kmer in kvp[1].prefixNodes:
+            follow_str = "None"
             if len(kvp[1].followingNodes) > 0:
-                print("{0} -> {1}".format(kmer, ",".join(kvp[1].followingNodes)))
+                follow_str =  ",".join(kvp[1].followingNodes)
+            print("{0} -> {1}".format(kmer, follow_str))
 
 def build_fragment_graph(kmers, kmer_len):
     graph = {}
@@ -45,7 +47,8 @@ def build_fragment_graph(kmers, kmer_len):
         #print(".." + kmer)
         #print(".." + kmer_as_key)
         #print(".." + kmer_as_lookup)
-        #print_graph(graph)        
+        #print_graph(graph)
+        #print("--")        
     return graph
 
 

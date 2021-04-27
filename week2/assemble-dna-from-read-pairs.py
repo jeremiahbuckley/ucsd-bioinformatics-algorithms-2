@@ -61,8 +61,10 @@ def node_lead_follow_pairs_to_list(node_lead_follow_lookup):
     for kvp in node_lead_follow_lookup.items():
         #print(kvp[0])
         for read_pair in kvp[1].leadingNodes:
+            following_nodes_str = "None"
             if len(kvp[1].followingNodes) > 0:
-                out.append("{0} -> {1}".format(read_pair, ",".join(kvp[1].followingNodes)))
+                following_nodes_str = ",".join(kvp[1].followingNodes)
+            out.append("{0} -> {1}".format(read_pair, following_nodes_str))
     return out
 
 def get_suffix_key_from_read_pair(read_pair, kmer_len):
@@ -109,7 +111,10 @@ def init_data(nodes_list):
          end_id = node_desc.index(" -> ") #intentionally throw error if this isn't present
          nid = node_desc[0:end_id]
          outgoing_nodes = node_desc[end_id+4:len(node_desc)+1].rstrip()
-         nodes_data[nid] = NodeInfo(nid, outgoing_nodes.split(","))
+         outgoing_nodes_list = []
+         if outgoing_nodes != "None":
+             outgoing_nodes_list = outgoing_nodes.split(",")
+         nodes_data[nid] = NodeInfo(nid, outgoing_nodes_list)
 
     added_path = None
     for kvp in nodes_data.items():
@@ -128,12 +133,12 @@ def init_data(nodes_list):
         nodes_data[added_path[0]] = NodeInfo(added_path[0], [added_path[1]])
 
 
-    #print_state(nodes_data, 0)
+    print_state(nodes_data, 0)
 
     return nodes_data, added_path
 
 def print_state(nodes_data, indent):
-
+    print('state:')
     for kvp in nodes_data.items():
         print("{0}{1}-{2}-{3}".format(" " * indent,
                                       kvp[0],
@@ -161,8 +166,8 @@ def restart_cycle(nodes_data, path):
             restart_nodes.append(node_key)
             can_restart = True
 
-    #for nk in restart_nodes:
-    #    print(nodes_data[nk].last_cycle_debug_str)
+    for nk in restart_nodes:
+        print(nodes_data[nk].last_cycle_debug_str)
 
     if len(restart_nodes) > 0:
         restart_point = 0
@@ -177,7 +182,7 @@ def restart_cycle(nodes_data, path):
         new_path = path[path.index(restart_node_key):len(path)-1]+ \
                    path[0:path.index(restart_node_key)]
 
-    #print("restarting {0} {1}".format(can_restart, restart_node_key))
+    print("restarting {0} {1}".format(can_restart, restart_node_key))
     return can_restart, restart_node_key, new_path
 
 def find_eulerian_path(nodes_list, kmer_len, read_distance):
@@ -194,14 +199,15 @@ def find_eulerian_path(nodes_list, kmer_len, read_distance):
     graph_has_open_edges = nodes_data[old_node_key].has_open_edges()
     cycle_path.append(old_node_key)
     while graph_has_open_edges:
-        #print(cycle_path)
-        #print_state(nodes_data, len(cycle_path))
+        print(cycle_path)
+        print_state(nodes_data, len(cycle_path))
         if nodes_data[old_node_key].has_open_edges():
             new_node_key = nodes_data[old_node_key].next_trip_out()
+            #print("*****" + nodes_data[old_node_key].last_cycle_debug_str)
             cycle_path.append(new_node_key)
         else:
-            #print("search needs restart-" + old_node_key + "\n" + \
-            #      nodes_data[old_node_key].last_cycle_debug_str)
+            print("search needs restart-" + old_node_key + "\n" + \
+                  nodes_data[old_node_key].last_cycle_debug_str)
             graph_has_open_edges, new_node_key, cycle_path = restart_cycle(nodes_data, cycle_path)
             if graph_has_open_edges:
                 cycle_path.append(new_node_key)
@@ -217,10 +223,13 @@ def reconstruct_dna_from_read_pair_list(read_pair_list, kmer_len, distance):
     strands = ["",""]
     for idx in [0,1]:
         strands[idx] = read_pair[idx]
+        print(".." + strands[idx])
     for i in range(1, len(read_pair_list)):
         read_pair = read_pair_list[i].split("|")
         for idx in [0,1]:
+            print("{0} {1}".format(read_pair[idx], read_pair[idx][kmer_len-1:kmer_len]))
             strands[idx] += read_pair[idx][kmer_len-1:kmer_len]
+            print(".." + strands[idx])
     #print(strands[0])
     #print(strands[1])
     follow_strand_suffix = strands[1][len(strands[1])-kmer_len-distance:len(strands[1])]
@@ -256,11 +265,13 @@ if __name__ == "__main__":
             except ValueError:
                 kmer_len = int(len(read_pairs[0])-1 / 2)
 
+        random.seed(0)
+
         node_lead_follow_structure = build_fragment_graph(read_pairs, kmer_len, distance)
         lead_follow_list = node_lead_follow_pairs_to_list(node_lead_follow_structure)
-        #print(lead_follow_list)
+        print(lead_follow_list)
         read_pair_path = find_eulerian_path(lead_follow_list, kmer_len, distance)
-        #print("->".join(read_pair_path))
+        print("->".join(read_pair_path))
         full_dna = reconstruct_dna_from_read_pair_list(read_pair_path, kmer_len, distance)
         print(full_dna)
 
