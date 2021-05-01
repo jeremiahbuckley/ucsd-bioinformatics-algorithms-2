@@ -6,8 +6,13 @@ import array
 
 _peptide_by_mass_lookup_ = {}
 
-_peptides_at_mass_idx_ = array.array('l', [0 for i in range(5000)])
+
+_peptide_str_count_at_mass_idx_ = array.array('l', [0 for i in range(5000)])
 _cache_p_res_at_m_idx_ = array.array('i', [0 for i in range(5000)])
+_peptide_strings_at_mass_idx_ = []
+for i in range(5000):
+    _peptide_strings_at_mass_idx_.append([])
+
 _peptide_masses_ = []
 
 def init_int_mass_tables(mass_table):
@@ -18,11 +23,34 @@ def init_int_mass_tables(mass_table):
         mass_by_peptide[key] = value
         if key != "I" and key != "K":
             _peptide_by_mass_lookup_[value] = key
-            _peptides_at_mass_idx_[value] = 1
+            _peptide_strings_at_mass_idx_[value].append(key)
+            _peptide_str_count_at_mass_idx_[value] = 1
             _cache_p_res_at_m_idx_[value] = 1
             _peptide_masses_.append(value)
     #print(mass_by_peptide)
     #print(_peptide_by_mass_lookup_)
+
+    #_peptide_str_count_at_mass_idx_[113] += 1 #I
+    #_peptide_str_count_at_mass_idx_[128] += 1 #K
+    _peptide_str_count_at_mass_idx_[114] += 1 #GG, GG (reversed)
+    _peptide_str_count_at_mass_idx_[128] += 2 #GA,AG
+    _peptide_str_count_at_mass_idx_[156] += 2 #GV, VG
+    _peptide_str_count_at_mass_idx_[186] += 6 #EG,GE, SV, VS, AD, DA
+    _peptide_strings_at_mass_idx_[114].append("GG")
+    _peptide_strings_at_mass_idx_[128].append("AG")
+    _peptide_strings_at_mass_idx_[128].append("GA")
+    _peptide_strings_at_mass_idx_[156].append("GV")
+    _peptide_strings_at_mass_idx_[156].append("VG")
+    _peptide_strings_at_mass_idx_[186].append("EG")
+    _peptide_strings_at_mass_idx_[186].append("GE")
+    _peptide_strings_at_mass_idx_[186].append("SV")
+    _peptide_strings_at_mass_idx_[186].append("VS")
+    _peptide_strings_at_mass_idx_[186].append("AD")
+    _peptide_strings_at_mass_idx_[186].append("DA")
+    print(_peptide_strings_at_mass_idx_)
+    #print("z")
+    #print(_peptide_str_count_at_mass_idx_)
+    #print("z")
     return mass_by_peptide, _peptide_by_mass_lookup_
 
 '''
@@ -130,14 +158,14 @@ def count_peptides_of_given_mass_old(mass, int_mass_table):
  
     return counts
 
-def count_recursive_find_peptides (mass, known_results_cache, debug_indent):
-    #_peptides_at_mass_idx_ = array.array('l', [0 for i in range(5000)])
+def count_recursive_find_peptides_old (mass, known_results_cache, debug_indent):
+    #_peptide_str_count_at_mass_idx_ = array.array('l', [0 for i in range(5000)])
     #_cache_p_res_at_m_idx_ = array.array('i', [0 for i in range(5000)])
     masses = []
     #print("{0}--> {1}.".format(" " * debug_indent, str(mass)))
 
     if _cache_p_res_at_m_idx_[mass] == 1:
-        found_results = _peptides_at_mass_idx_[mass]
+        found_results = _peptide_str_count_at_mass_idx_[mass]
         #print("{0}cache: {1} {2}.".format(" " * debug_indent, str(mass), ",".join(known_results_cache[mass])))
         return found_results
 
@@ -148,44 +176,11 @@ def count_recursive_find_peptides (mass, known_results_cache, debug_indent):
 
     if _cache_p_res_at_m_idx_[mass] == 1:
         raise RuntimeError("Cache miss. Cache should have been empty here. {0}.".format(mass))
-    _peptides_at_mass_idx_[mass] = successful_finds
+    _peptide_str_count_at_mass_idx_[mass] = successful_finds
     _cache_p_res_at_m_idx_[mass] = 1
     return successful_finds
 
 def count_recursive_find_peptides(mass, debug_indent):
-    pep_strs_at_mass_idx = []
-    for i in range(5000):
-        pep_strs_at_mass_idx.append([])
-    pep_strs_at_mass_idx[57].append("G")
-    pep_strs_at_mass_idx[71].append("A")
-    pep_strs_at_mass_idx[87].append("S")
-    pep_strs_at_mass_idx[97].append("P")
-    pep_strs_at_mass_idx[99].append("V")
-    pep_strs_at_mass_idx[101].append("T")
-    pep_strs_at_mass_idx[103].append("C")
-    pep_strs_at_mass_idx[113].append("L")
-    pep_strs_at_mass_idx[114].append("N")
-    pep_strs_at_mass_idx[114].append("GG")
-    pep_strs_at_mass_idx[115].append("D")
-    pep_strs_at_mass_idx[128].append("Q")
-    pep_strs_at_mass_idx[128].append("AG")
-    pep_strs_at_mass_idx[128].append("GA")
-    pep_strs_at_mass_idx[129].append("E")
-    pep_strs_at_mass_idx[131].append("M")
-    pep_strs_at_mass_idx[137].append("H")
-    pep_strs_at_mass_idx[147].append("F")
-    pep_strs_at_mass_idx[156].append("R")
-    pep_strs_at_mass_idx[156].append("GV")
-    pep_strs_at_mass_idx[156].append("VG")
-    pep_strs_at_mass_idx[163].append("Y")
-    pep_strs_at_mass_idx[186].append("W")
-    pep_strs_at_mass_idx[186].append("EG")
-    pep_strs_at_mass_idx[186].append("GE")
-    pep_strs_at_mass_idx[186].append("SV")
-    pep_strs_at_mass_idx[186].append("VS")
-    pep_strs_at_mass_idx[186].append("AD")
-    pep_strs_at_mass_idx[186].append("DA")
-    #print(pep_strs_at_mass_idx)
     recursion_stack = []
     recursion_stack.append([0, mass, 0, [""], []])
     recursion_stack.append([0, mass, 0, [""], []])
@@ -205,13 +200,13 @@ def count_recursive_find_peptides(mass, debug_indent):
 
         if _cache_p_res_at_m_idx_[mass] == 1:
             #print("x"+str(mass))
-            #print(pep_strs_at_mass_idx)
-            found_results = _peptides_at_mass_idx_[mass]
-            #found_suffixes = pep_strs_at_mass_idx[mass]
-            #for ps in recursion_stack[stack_frame_idx][3]:
-            #    for ss in found_suffixes:
+            #print(_peptide_strings_at_mass_idx_)
+            found_results = _peptide_str_count_at_mass_idx_[mass]
+            found_suffixes = _peptide_strings_at_mass_idx_[mass]
+            for ps in recursion_stack[stack_frame_idx][3]:
+                for ss in found_suffixes:
                     #print("w 1" + ps+ " 2" + ss)
-            #        recursion_stack[previous_stack_frame_idx][4].append(ps+ss)
+                    recursion_stack[previous_stack_frame_idx][4].append(ps+ss)
             recursion_stack[previous_stack_frame_idx][2] += found_results
             recursion_stack.pop(stack_frame_idx)
         elif mass < 57:
@@ -224,37 +219,27 @@ def count_recursive_find_peptides(mass, debug_indent):
             #print("z" + prefix)
             recursion_stack.append([0, n_mass, 0, [prefix], []])
         else:
-            _peptides_at_mass_idx_[mass] = result
+            _peptide_str_count_at_mass_idx_[mass] = result
             _cache_p_res_at_m_idx_[mass] = 1
             #print("y" + ",".join(pep_strs))
-            #pep_strs_at_mass_idx[mass] = pep_strs
-            #for ps in recursion_stack[stack_frame_idx][3]:
-            #    for ss in pep_strs:
-            #        recursion_stack[previous_stack_frame_idx][4].append(ps+ss)
+            _peptide_strings_at_mass_idx_[mass] = pep_strs
+            for ps in recursion_stack[stack_frame_idx][3]:
+                for ss in pep_strs:
+                    recursion_stack[previous_stack_frame_idx][4].append(ps+ss)
             recursion_stack[previous_stack_frame_idx][2] += result
             recursion_stack.pop(stack_frame_idx)
     
-    #print("end: " + ",".join(recursion_stack[0][4]))        
+    print("end: " + ",".join(recursion_stack[0][4]))        
     return recursion_stack[0][2]
 
-def count_peptides_of_given_mass(mass, int_mass_table):
-    #_peptides_at_mass_idx_ = array.array('l', [0 for i in range(5000)])
+def count_peptides_of_given_mass(mass):
+    #_peptide_str_count_at_mass_idx_ = array.array('l', [0 for i in range(5000)])
     #_cache_p_res_at_m_idx_ = array.array('i', [0 for i in range(5000)])
-    mass_by_peptide = init_int_mass_tables(int_mass_table)
     counts = 0
     #    print("{0} {1} {2}".format(kvp[1], kvp[0]*2, kvp[0]*3))
     #for kvp in _peptide_by_mass_lookup_.items():
     #    for kvp2 in _peptide_by_mass_lookup_.items():
     #        print("{0} {1}".format(kvp[0] + kvp2[0], kvp[1] + kvp2[1]))
-    #_peptides_at_mass_idx_[113] += 1 #I
-    #_peptides_at_mass_idx_[128] += 1 #K
-    _peptides_at_mass_idx_[114] += 1 #GG, GG (reversed)
-    _peptides_at_mass_idx_[128] += 2 #GA,AG
-    _peptides_at_mass_idx_[156] += 2 #GV, VG
-    _peptides_at_mass_idx_[186] += 6 #EG,GE, SV, VS, AD, DA
-    #print("z")
-    #print(_peptides_at_mass_idx_)
-    #print("z")
     counts = count_recursive_find_peptides(mass, 1)
  
     return counts
@@ -306,7 +291,8 @@ if __name__ == "__main__":
             int_mass_table = [line.rstrip() for line in f]
         #print(int_mass_table)
 
-        masses = count_peptides_of_given_mass(mass, int_mass_table)
+        init_int_mass_tables(int_mass_table)
+        masses = count_peptides_of_given_mass(mass)
         #for mass in masses:
         #    print(mass)
         #print(len(masses))
