@@ -31,7 +31,7 @@ def brute_force_generate_peptide_combos(iterative_count, int_mass_table):
     # G 57, *5 = 285
     # W 186 *5 = 930
     count_per_mass = {}
-    for rep_ct in range(1,iterative_count):
+    for rep_ct in range(1,iterative_count+1):
         for pep_str in itertools.product('GASPVTCINDKEMHFRYW', repeat = rep_ct):
             m = 0
             for c in pep_str:
@@ -49,7 +49,7 @@ def write_result(count_per_mass):
             if kvp[0] <= (57 * iterative_count): # G=57, if kvp[0] <= GGGGG then it has reached max-count at that weight
                 #print(kvp[0])
                 f.write("{0}    {1}\n".format(kvp[0],len(kvp[1])))
-                if kvp[0] == 257 or kvp[0] == 273 or len(kvp[1]) < 3:
+                if kvp[0] == 257 or kvp[0] == 273 or kvp[0] == 285 or len(kvp[1]) < 3:
                     print(str(kvp[0]) + " " + ",".join(kvp[1]))
 
 if __name__ == "__main__":
