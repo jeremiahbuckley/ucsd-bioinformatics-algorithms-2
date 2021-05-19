@@ -5,6 +5,30 @@ import time
 import itertools
 
 
+'''
+This ended up as an attempt to answer problem 1.1.10 Excercise Break - Run LeaderboardCyclopeptideSequencing on Spectrum(25) with N=1000.
+You should find 38 linear peptides of max score 83 (corresponding to 15 different cyclic peptides).
+
+I never got 38 peptides, I got 10. Also the max observed score was 84.
+97-147-113-128-99-163-128-114-147-71-115
+97-147-113-128-99-163-128-114-147-115-71
+97-147-113-128-99-163-57-71-114-147-71-115
+97-147-113-128-99-163-57-71-114-147-115-71
+97-147-113-128-99-163-71-57-114-147-71-115
+97-147-113-128-99-163-71-57-114-147-115-71
+97-147-113-128-99-163-128-57-57-147-71-115
+97-147-113-128-99-163-128-57-57-147-115-71
+97-147-113-128-99-163-71-57-57-57-147-71-115
+97-147-113-128-99-163-71-57-57-57-147-115-71
+
+I could have written the scoring function wrong, still not 100% confident about those loops.
+
+I also wonder about the search space described by expand/trim, it seems that other answers should have been found, the same peptide sequences but rotated around. But they weren't found because "PFLQVY" was profitable enough to eliminate them.
+A competing sequence would have to contain (either linearly or ciclically) PLFQVY in order to stay in the running.
+
+I think the answer "38 linear peptides" is a result of a particular search execution path, not part of the requirements. Mine doesn't take that path, and so doesn't come up with the same result.
+'''
+
 _amino_acid_by_mass_lookup_ = {}
 _mass_by_amino_acid_lookup_ = {}
 
@@ -154,6 +178,11 @@ def expand_search(candidate_peptides, spectrum):
                 pi.score_against_experimental_spectrum(spectrum)
                 new_candidate_peptides[new_candidate_peptide_str] = pi
 
+                new_candidate_peptide_str = amino_acid + base_peptide.peptide_string
+                pi = PeptideInfo(new_candidate_peptide_str)
+                pi.score_against_experimental_spectrum(spectrum)
+                new_candidate_peptides[new_candidate_peptide_str] = pi
+
     return new_candidate_peptides
 
 def spectrums_match(peptide, spectrum):
@@ -206,7 +235,7 @@ def trim_candidate_peptides_list(candidate_peptides, n):
     #    print(",".join([str(i) for i in scores]))
     new_candidate_peptides = candidate_peptides
     if len(scores) > n:
-        cutoff = scores[n]
+        cutoff = scores[n-1]
         #if _debug_int_ % 10 == 0:
         #    print(cutoff)
         new_candidate_peptides = {key:value for (key,value) in candidate_peptides.items() 
@@ -233,13 +262,13 @@ def leaderboard_cyclopeptide_seqencing(spectrum, cutoff, integer_mass_table):
         for pi in candidate_peptides.values():
             if pi.full_mass == parent_mass:
                 if pi.circular_score > leader_peptide_score:
-                    #print("new")
-                    #leader_peptides = []
+                    print("new")
+                    leader_peptides = []
                     leader_peptide_score = pi.circular_score
-                #if pi.circular_score == leader_peptide_score:
-                print("adding {0}".format(pi.peptide_string))
-                leader_peptides.append(pi)
-                peps_to_remove.append(pi.peptide_string)
+                if pi.circular_score >= leader_peptide_score:
+                    print("adding {0}".format(pi.peptide_string))
+                    leader_peptides.append(pi)
+                #peps_to_remove.append(pi.peptide_string)
             elif pi.full_mass > parent_mass:
                 peps_to_remove.append(pi.peptide_string)
         for i in peps_to_remove[::-1]:
