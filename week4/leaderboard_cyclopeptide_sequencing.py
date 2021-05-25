@@ -3,6 +3,7 @@
 import sys
 import time
 import itertools
+from typing import cast
 
 
 '''
@@ -41,18 +42,24 @@ class PeptideInfo:
 
     def __init__(self, pep_str):
         self.peptide_string = pep_str
-        self.linear_spec = linear_theoretic_spec(pep_str)
-        self.circular_spec = circ_theoretic_spec(pep_str)
+        self.linear_spec = sorted(linear_theoretic_spec(pep_str))
+        self.circular_spec = sorted(circ_theoretic_spec(pep_str))
         self.full_mass = full_peptide_mass(pep_str)
+        self.linear_score = -1
+        self.circular_score = -1
+        self.debug_circular_score = -1
+        self.slice_idx = 100
 
     def score_against_experimental_spectrum(self, exp_spec_weights):
         self.linear_score = match_spec_weights(self.linear_spec, exp_spec_weights)
         self.circular_score = match_spec_weights(self.circular_spec, exp_spec_weights)
+        self.debug_circular_score = match_spec_weights(self.circular_spec[0:self.slice_idx], exp_spec_weights[0:self.slice_idx])
 
     def printout(self):
         print("{0} {1}".format(self.peptide_string, str(self.full_mass)))
-        print("L {0} {1}".format(str(self.linear_score), "-".join([str(i) for i in self.linear_spec])))
-        print("C {0} {1}".format(str(self.circular_score), "-".join([str(i) for i in self.circular_spec])))
+        print("L {0} {1}".format(str(self.linear_score), ",".join([str(i) for i in self.linear_spec])))
+        print("C {0} {1}".format(str(self.circular_score), ",".join([str(i) for i in self.circular_spec])))
+        print("D {0} {1}".format(str(self.debug_circular_score), ",".join([str(i) for i in self.circular_spec[0:self.slice_idx]])))
 
 def init_int_mass_tables(mass_table):
     for kvp in mass_table:
@@ -75,7 +82,7 @@ def full_peptide_mass(peptide_string):
 
 def calc_theoretic_spectrum(peptide_string, find_circular=True):
     masses = []
-    cumulative_mass_peptide_string = peptide_string
+    cumulative_mass_peptide_string = peptide_string[:]
     if find_circular:
         cumulative_mass_peptide_string += peptide_string #double so iterating through the loops is easy
 
@@ -93,13 +100,15 @@ def calc_theoretic_spectrum(peptide_string, find_circular=True):
     masses.append(0)
     # intentionally do not add full-length substring in this loop
     for length in range(1, len(peptide_string)):
-        upper_bound_offset = 0
-        if not find_circular:
-            upper_bound_offset = length
-        for idx in range(0, len(peptide_string)+1-upper_bound_offset):
+        upper_bound = 0
+        if find_circular:
+            upper_bound = len(peptide_string) + 1
+        else:
+            upper_bound = len(peptide_string) - length + 1
+        for idx in range(0, upper_bound):
              new_mass = cumulative_mass_list[idx+length] - cumulative_mass_list[idx]
              masses.append(new_mass)
-    masses.append(cumulative_mass_list[len(peptide_string)])
+    #masses.append(cumulative_mass_list[len(peptide_string)])
     return masses
 '''
 2
@@ -147,9 +156,9 @@ def match_spec_weights(pep_spec_weights, experimental_spec_weights):
             idx += 1
    
     #score -= (len(peptide_weights) * .5) 
-    if score >= 83:
-        print("x {0} {1}".format(str(score), "-".join([str(i) for i in peptide_weights])))
-    
+    #if score >= 83:
+    #    print("x {0} {1}".format(str(score), "-".join([str(i) for i in peptide_weights])))
+
     return score
 
 
@@ -178,10 +187,10 @@ def expand_search(candidate_peptides, spectrum):
                 pi.score_against_experimental_spectrum(spectrum)
                 new_candidate_peptides[new_candidate_peptide_str] = pi
 
-                new_candidate_peptide_str = amino_acid + base_peptide.peptide_string
-                pi = PeptideInfo(new_candidate_peptide_str)
-                pi.score_against_experimental_spectrum(spectrum)
-                new_candidate_peptides[new_candidate_peptide_str] = pi
+                #new_candidate_peptide_str = amino_acid + base_peptide.peptide_string
+                #pi = PeptideInfo(new_candidate_peptide_str)
+                #pi.score_against_experimental_spectrum(spectrum)
+                #new_candidate_peptides[new_candidate_peptide_str] = pi
 
     return new_candidate_peptides
 
@@ -233,6 +242,22 @@ def trim_candidate_peptides_list(candidate_peptides, n):
     #global _debug_int_
     #if _debug_int_ % 10 == 0:
     #    print(",".join([str(i) for i in scores]))
+
+    if len(candidate_peptides) < 500:
+        cp = sorted(candidate_peptides.items(), key = lambda a:cast(PeptideInfo, a[1]).linear_score, reverse = True)
+        for pi in cp:
+            print(cast(PeptideInfo,pi).linear_score)
+            #print("{0} {1}".format(str(cast(PeptideInfo, pi).linear_score), "-".join([str(_mass_by_amino_acid_lookup_[c]) for c in pi.peptide_string])))
+
+    if len(scores) > n:
+        print("cutoff: {0}".format(str(scores[n-1])))
+    else:
+        print("no cutoff")
+    #for tstr in ["V","VQ","VQL","VQLF","VQLFP","VQLFPW","VQLFPWF","VQLFPWFN","VQLFPWFNQ","VQLFPWFNQY","VQLFPA","VQLFPAD","VQLFPADF","VQLFPADFN","VQLFPADFNQ","VQLFPADPNQY", "P", "PA", "PAD", "PADF", "PADFN", "PADFNQ", "PADFNQY", "PADFNQYV", "PADFNQYVQ", "PADFNQYVQL", "PADFNQYVQLF", "PF", "PFL", "PFLQ", "PFLQV", "PFLQVY", "PFLQVYA", "PFLQVYAG", "PFLQVYAGG", "PFLQVYAGGG", "PFLQVYAGGGF", "PFLQVYAGGGFD", "PFLQVYAGGGFDA"]:
+    #    if tstr in candidate_peptides:
+    #         print("{0} {1} {2}".format(tstr, str(candidate_peptides[tstr].linear_score), str(candidate_peptides[tstr].circular_score)))
+    #         print(" ".join([str(i) for i in sorted(candidate_peptides[tstr].linear_spec)]))
+
     new_candidate_peptides = candidate_peptides
     if len(scores) > n:
         cutoff = scores[n-1]
@@ -240,9 +265,10 @@ def trim_candidate_peptides_list(candidate_peptides, n):
         #    print(cutoff)
         new_candidate_peptides = {key:value for (key,value) in candidate_peptides.items() 
                                   if value.linear_score >= cutoff}
+    
+    print("dropped: {0}".format(str(len(candidate_peptides) - len(new_candidate_peptides))))
     return new_candidate_peptides
     
-
 
 def leaderboard_cyclopeptide_seqencing(spectrum, cutoff, integer_mass_table):
     init_int_mass_tables(integer_mass_table)
@@ -259,18 +285,21 @@ def leaderboard_cyclopeptide_seqencing(spectrum, cutoff, integer_mass_table):
     while len(candidate_peptides) > 0:
         candidate_peptides = expand_search(candidate_peptides, spectrum)
         peps_to_remove = []
+
         for pi in candidate_peptides.values():
             if pi.full_mass == parent_mass:
                 if pi.circular_score > leader_peptide_score:
-                    print("new")
+                    print("new high score: {0}".format(str(pi.circular_score)))
                     leader_peptides = []
                     leader_peptide_score = pi.circular_score
                 if pi.circular_score >= leader_peptide_score:
                     print("adding {0}".format(pi.peptide_string))
+                    print(" ".join([str(i) for i in sorted(pi.linear_spec)]))
                     leader_peptides.append(pi)
                 #peps_to_remove.append(pi.peptide_string)
             elif pi.full_mass > parent_mass:
                 peps_to_remove.append(pi.peptide_string)
+        print("candidates: {0}, leaders: {1}, leader_score: {2}, removing: {3}".format(str(len(candidate_peptides)), str(len(leader_peptides)), str(leader_peptide_score), str(len(peps_to_remove))))
         for i in peps_to_remove[::-1]:
             candidate_peptides.pop(i, None)
         candidate_peptides = trim_candidate_peptides_list(candidate_peptides, cutoff)
@@ -291,7 +320,7 @@ def convert_amino_acid_strs_to_weights(sequences):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: one param, filename, format:<int_cutoff>\\n<list_int_weights>.") 
+        print("Usage: one param, filename, format:\n<int_leaderboard_cutoff>\n<list_int_weights>.") 
 
     else:
         start = time.process_time()
