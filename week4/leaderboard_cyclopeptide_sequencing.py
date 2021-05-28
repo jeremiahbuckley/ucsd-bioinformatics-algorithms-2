@@ -137,30 +137,7 @@ def calc_theoretic_spectrum(peptide_string, find_circular=True):
                      print("PFLQ.... {0} len: {1} idx: {2}  {3}-{4}".format(str(new_mass), str(length), str(idx), str(cumulative_mass_list[idx+length]), str(cumulative_mass_list[idx])))
     masses.append(cumulative_mass_list[len(peptide_string)])
     return masses
-'''
-2
-0 1 2 3 4 5
-0 1 12 123 1234 12345
-0 1 12 123 1234 12345 123451 1234512 12345123 123451234 1234512345
 
-12-0 123-1  1234-12 12345-123 123451-1234 1234512-12345
-2-0  3-1    4-2     5-3       6-4         7-5
-0+len(substr) -to- len(str)+len(substr)
-0             -to- len(str)
-
-12-0 123-1 1234-12 12345-123
-2-0  3-1   4-2     5-3
-0+len(substr) -to- len(str)
-0             -to- len(str)-len(substr)
-
-
-
-3
-123-0 1234-1 12345-12 123451-123 1234512-1234
-
-4
-1234-0 12345-1 123451-12 1234512-123 12345123-1234
-'''
 def linear_theoretic_spec(peptide_string):
     return calc_theoretic_spectrum(peptide_string, False)
 
@@ -182,10 +159,6 @@ def match_spec_weights(pep_spec_weights, experimental_spec_weights):
         else:
             idx += 1
    
-    #score -= (len(peptide_weights) * .5) 
-    #if score >= 83:
-    #    print("x {0} {1}".format(str(score), "-".join([str(i) for i in peptide_weights])))
-
     return score
 
 
@@ -266,24 +239,12 @@ def trim_candidate_peptides_list(candidate_peptides, n):
     for pi in candidate_peptides.values():
         unsorted_scores.append(pi.linear_score)
     scores = sorted(unsorted_scores, reverse=True)
-    #global _debug_int_
-    #if _debug_int_ % 10 == 0:
-    #    print(",".join([str(i) for i in scores]))
 
-    if len(candidate_peptides) < 500:
-        cp = sorted(candidate_peptides.items(), key = lambda a:cast(PeptideInfo, a[1]).linear_score, reverse = True)
-        for x in cp:
-            pi = cast(PeptideInfo, x[1])
-            print("{0} {1}".format(str(cast(PeptideInfo, pi).linear_score), "-".join([str(_mass_by_amino_acid_lookup_[c]) for c in pi.peptide_string])))
-
-    if len(scores) > n:
-        print("cutoff: {0}".format(str(scores[n-1])))
-    else:
-        print("no cutoff")
-    #for tstr in ["V","VQ","VQL","VQLF","VQLFP","VQLFPW","VQLFPWF","VQLFPWFN","VQLFPWFNQ","VQLFPWFNQY","VQLFPA","VQLFPAD","VQLFPADF","VQLFPADFN","VQLFPADFNQ","VQLFPADPNQY", "P", "PA", "PAD", "PADF", "PADFN", "PADFNQ", "PADFNQY", "PADFNQYV", "PADFNQYVQ", "PADFNQYVQL", "PADFNQYVQLF", "PF", "PFL", "PFLQ", "PFLQV", "PFLQVY", "PFLQVYA", "PFLQVYAG", "PFLQVYAGG", "PFLQVYAGGG", "PFLQVYAGGGF", "PFLQVYAGGGFD", "PFLQVYAGGGFDA"]:
-    #    if tstr in candidate_peptides:
-    #         print("{0} {1} {2}".format(tstr, str(candidate_peptides[tstr].linear_score), str(candidate_peptides[tstr].circular_score)))
-    #         print(" ".join([str(i) for i in sorted(candidate_peptides[tstr].linear_spec)]))
+    if __debug__:
+        if len(scores) > n:
+            print("cutoff: {0}".format(str(scores[n-1])))
+        else:
+            print("no cutoff")
 
     new_candidate_peptides = candidate_peptides
     if len(scores) > n:
