@@ -51,9 +51,31 @@ class PeptideInfo:
         self.slice_idx = 100
 
     def score_against_experimental_spectrum(self, exp_spec_weights):
+
+
         self.linear_score = match_spec_weights(self.linear_spec, exp_spec_weights)
         self.circular_score = match_spec_weights(self.circular_spec, exp_spec_weights)
         self.debug_circular_score = match_spec_weights(self.circular_spec[0:self.slice_idx], exp_spec_weights[0:self.slice_idx])
+        if self.peptide_string == 'PFLQVYAGGGFDA' or self.peptide_string == 'PADFNQYVQLF':
+            print(self.peptide_string)
+            print(self.linear_score)
+            print(" ".join([str(w) for w in self.linear_spec]))
+            print(self.circular_score)
+            print(" ".join([str(w) for w in self.circular_spec]))
+            print(" ".join([str(w) for w in exp_spec_weights]))
+            linSpectrumDict = {}
+            for w in self.linear_spec:
+                linSpectrumDict[w] = linSpectrumDict.get(w, 0) + 1
+            theoSpectrumDict = {}
+            for w in self.circular_spec:
+                theoSpectrumDict[w] = theoSpectrumDict.get(w, 0) + 1
+            spectrumDict = {}
+            for w in exp_spec_weights:
+                spectrumDict[w] = spectrumDict.get(w, 0) + 1
+            print("242... t:{0} s:{1}".format(str(theoSpectrumDict[242]), str(spectrumDict[242])))
+            print(linSpectrumDict)
+            print(theoSpectrumDict)
+            print(spectrumDict)
 
     def printout(self):
         print("{0} {1}".format(self.peptide_string, str(self.full_mass)))
@@ -99,16 +121,21 @@ def calc_theoretic_spectrum(peptide_string, find_circular=True):
 
     masses.append(0)
     # intentionally do not add full-length substring in this loop
+    if peptide_string == 'PFLQVYAGGGFDA' or peptide_string == 'PADFNQYVQLF':
+        print(str(len(peptide_string)) + " " + " ".join([str(m) for m in cumulative_mass_list]))
     for length in range(1, len(peptide_string)):
         upper_bound = 0
         if find_circular:
-            upper_bound = len(peptide_string) + 1
+            upper_bound = len(peptide_string)
         else:
             upper_bound = len(peptide_string) - length + 1
         for idx in range(0, upper_bound):
              new_mass = cumulative_mass_list[idx+length] - cumulative_mass_list[idx]
              masses.append(new_mass)
-    #masses.append(cumulative_mass_list[len(peptide_string)])
+             if peptide_string == 'PFLQVYAGGGFDA':
+                 if new_mass in [97, 244, 485, 584, 747, 818, 875, 932, 989, 1136, 1251]:
+                     print("PFLQ.... {0} len: {1} idx: {2}  {3}-{4}".format(str(new_mass), str(length), str(idx), str(cumulative_mass_list[idx+length]), str(cumulative_mass_list[idx])))
+    masses.append(cumulative_mass_list[len(peptide_string)])
     return masses
 '''
 2
@@ -245,9 +272,9 @@ def trim_candidate_peptides_list(candidate_peptides, n):
 
     if len(candidate_peptides) < 500:
         cp = sorted(candidate_peptides.items(), key = lambda a:cast(PeptideInfo, a[1]).linear_score, reverse = True)
-        for pi in cp:
-            print(cast(PeptideInfo,pi).linear_score)
-            #print("{0} {1}".format(str(cast(PeptideInfo, pi).linear_score), "-".join([str(_mass_by_amino_acid_lookup_[c]) for c in pi.peptide_string])))
+        for x in cp:
+            pi = cast(PeptideInfo, x[1])
+            print("{0} {1}".format(str(cast(PeptideInfo, pi).linear_score), "-".join([str(_mass_by_amino_acid_lookup_[c]) for c in pi.peptide_string])))
 
     if len(scores) > n:
         print("cutoff: {0}".format(str(scores[n-1])))
@@ -270,7 +297,7 @@ def trim_candidate_peptides_list(candidate_peptides, n):
     return new_candidate_peptides
     
 
-def leaderboard_cyclopeptide_seqencing(spectrum, cutoff, integer_mass_table):
+def leaderboard_cyclopeptide_sequencing(spectrum, cutoff, integer_mass_table):
     init_int_mass_tables(integer_mass_table)
 
     candidate_peptides = {}
@@ -300,7 +327,7 @@ def leaderboard_cyclopeptide_seqencing(spectrum, cutoff, integer_mass_table):
             elif pi.full_mass > parent_mass:
                 peps_to_remove.append(pi.peptide_string)
         print("candidates: {0}, leaders: {1}, leader_score: {2}, removing: {3}".format(str(len(candidate_peptides)), str(len(leader_peptides)), str(leader_peptide_score), str(len(peps_to_remove))))
-        for i in peps_to_remove[::-1]:
+        for i in peps_to_remove:
             candidate_peptides.pop(i, None)
         candidate_peptides = trim_candidate_peptides_list(candidate_peptides, cutoff)
 
@@ -334,7 +361,7 @@ if __name__ == "__main__":
         with open("./integer_mass_table.txt") as f:
             integer_mass_table = [line.rstrip() for line in f]
 
-        sequences = leaderboard_cyclopeptide_seqencing(spectrum, cutoff, integer_mass_table)
+        sequences = leaderboard_cyclopeptide_sequencing(spectrum, cutoff, integer_mass_table)
         #leader = convert_amino_acid_strs_to_weights([sequences])[0]
         #print(leader)
         seq_as_weights = convert_amino_acid_strs_to_weights(sequences)
