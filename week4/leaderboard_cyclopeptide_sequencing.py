@@ -3,15 +3,12 @@
 import sys
 import time
 import itertools
-from typing import cast
 
 _amino_acid_by_mass_lookup_ = {}
 _mass_by_amino_acid_lookup_ = {}
 
 _amino_acid_masses_ = []
 _all_available_amino_acids_ = []
-
-_debug_int_ = 0
 
 class PeptideInfo:
 
@@ -34,7 +31,8 @@ class PeptideInfo:
 
 def init_int_mass_tables(mass_table):
     for kvp in mass_table:
-        print(kvp)
+        if __debug__:
+            print(kvp)
         key = kvp[0:kvp.index(" ")]
         value = int(kvp[kvp.index(" ")+1:len(kvp)])
         _mass_by_amino_acid_lookup_[key] = value
@@ -68,11 +66,9 @@ def calc_theoretic_spectrum(peptide_string, find_circular=True):
     masses.append(0)
     # intentionally do not add full-length substring in this loop
     for length in range(1, len(peptide_string)):
-        upper_bound = 0
-        if find_circular:
-            upper_bound = len(peptide_string)
-        else:
-            upper_bound = len(peptide_string) - length + 1
+        upper_bound = len(peptide_string)
+        if not find_circular:
+            upper_bound -= (length - 1)
         for idx in range(0, upper_bound):
              new_mass = cumulative_mass_list[idx+length] - cumulative_mass_list[idx]
              masses.append(new_mass)
@@ -242,7 +238,8 @@ if __name__ == "__main__":
         print("Usage: one param, filename, format:\n<int_leaderboard_cutoff>\n<list_int_weights>.") 
 
     else:
-        start = time.process_time()
+        if __debug__:
+            start = time.process_time()
 
         with open(sys.argv[1]) as f:
             cutoff = int(f.readline())
@@ -258,7 +255,7 @@ if __name__ == "__main__":
         for s in seq_as_weights:
             print(s)
 
-        end = time.process_time()
         if __debug__:
+            end = time.process_time()
             print("Time: {0}".format(end-start))
 

@@ -4,33 +4,6 @@ import sys
 import time
 import itertools
 
-
-'''
-This ended up as an attempt to answer problem 1.1.10 Excercise Break - Run LeaderboardCyclopeptideSequencing on Spectrum(25) with N=1000.
-You should find 38 linear peptides of max score 83 (corresponding to 15 different cyclic peptides).
-
-I never got 38 peptides, I got 10. Also the max observed score was 84.
-97-147-113-128-99-163-128-114-147-71-115
-97-147-113-128-99-163-128-114-147-115-71
-97-147-113-128-99-163-57-71-114-147-71-115
-97-147-113-128-99-163-57-71-114-147-115-71
-97-147-113-128-99-163-71-57-114-147-71-115
-97-147-113-128-99-163-71-57-114-147-115-71
-97-147-113-128-99-163-128-57-57-147-71-115
-97-147-113-128-99-163-128-57-57-147-115-71
-97-147-113-128-99-163-71-57-57-57-147-71-115
-97-147-113-128-99-163-71-57-57-57-147-115-71
-
-I could have written the scoring function wrong, still not 100% confident about those loops.
-
-I also wonder about the search space described by expand/trim, it seems that other answers should have been found, the same peptide sequences but rotated around. But they weren't found because "PFLQVY" was profitable enough to eliminate them.
-A competing sequence would have to contain (either linearly or ciclically) PLFQVY in order to stay in the running.
-
-I think the answer "38 linear peptides" is a result of a particular search execution path, not part of the requirements. Mine doesn't take that path, and so doesn't come up with the same result.
-'''
-
-_debug_int_ = 0
-
 _peptide_weights_set_ = []
 
 class PeptideInfo:
@@ -63,15 +36,10 @@ def full_peptide_mass(peptide_weights):
 
 def calc_theoretic_spectrum(peptide_weights, find_circular=False):
     masses = []
-    #print(len(peptide_weights))
     cumulative_mass_peptide_weights = peptide_weights[:]
     if find_circular:
         cumulative_mass_peptide_weights += peptide_weights #double so iterating through the loops is easy
 
-    global _debug_int_
-    _debug_int_ += 1
-    #if _debug_int_ % 100 == 0:
-    #    print(cumulative_mass_peptide_weights)
     cumulative_mass_list = []
     cumulative_mass = 0
     cumulative_mass_list.append(cumulative_mass)
@@ -81,41 +49,16 @@ def calc_theoretic_spectrum(peptide_weights, find_circular=False):
 
     masses.append(0)
     # intentionally do not add full-length substring in this loop
-    #print("cts: {0} {1}".format(str(len(peptide_weights)), "-".join([str(i) for i in peptide_weights])))
     for length in range(1, len(peptide_weights)):
-        upper_bound_offset = 0
+        upper_bound = len(peptide_string)
         if not find_circular:
-            upper_bound_offset = length
-        for idx in range(0, len(peptide_weights)+1-upper_bound_offset):
+            upper_bound -= (length - 1)
+        for idx in range(0, upper_bound):
              new_mass = cumulative_mass_list[idx+length] - cumulative_mass_list[idx]
              masses.append(new_mass)
-        #print("    cts-work: {0} {1}".format(length, "-".join([str(i) for i in masses])))
     masses.append(cumulative_mass_list[len(peptide_weights)])
     return masses
-'''
-2
-0 1 2 3 4 5
-0 1 12 123 1234 12345
-0 1 12 123 1234 12345 123451 1234512 12345123 123451234 1234512345
 
-12-0 123-1  1234-12 12345-123 123451-1234 1234512-12345
-2-0  3-1    4-2     5-3       6-4         7-5
-0+len(substr) -to- len(str)+len(substr)
-0             -to- len(str)
-
-12-0 123-1 1234-12 12345-123
-2-0  3-1   4-2     5-3
-0+len(substr) -to- len(str)
-0             -to- len(str)-len(substr)
-
-
-
-3
-123-0 1234-1 12345-12 123451-123 1234512-1234
-
-4
-1234-0 12345-1 123451-12 1234512-123 12345123-1234
-'''
 def linear_theoretic_spec(peptide_weights):
     return calc_theoretic_spectrum(peptide_weights, False)
 
@@ -137,10 +80,6 @@ def match_spec_weights(pep_spec_weights, experimental_spec_weights):
         else:
             idx += 1
    
-    #score -= (len(peptide_weights) * .5) 
-    #if score >= 83:
-    #    print("x {0} {1}".format(str(score), "-".join([str(i) for i in peptide_weights])))
-    
     return score
 
 
@@ -168,11 +107,6 @@ def expand_search(candidate_peptides, spectrum):
             pi.score_against_experimental_spectrum(spectrum)
             new_candidate_peptides[pi.peptide_string] = pi
 
-            new_candidate_peptide_weights = [weight] + base_peptide.peptide_weights
-            pi = PeptideInfo(new_candidate_peptide_weights)
-            pi.score_against_experimental_spectrum(spectrum)
-            new_candidate_peptides[pi.peptide_string] = pi
-
     return new_candidate_peptides
 
 def trim_candidate_peptides_list(candidate_peptides, n):
@@ -181,14 +115,9 @@ def trim_candidate_peptides_list(candidate_peptides, n):
     for pi in candidate_peptides.values():
         unsorted_scores.append(pi.linear_score)
     scores = sorted(unsorted_scores, reverse=True)
-    #global _debug_int_
-    #if _debug_int_ % 10 == 0:
-    #    print(",".join([str(i) for i in scores]))
     new_candidate_peptides = candidate_peptides
     if len(scores) > n:
         cutoff = scores[n-1]
-        #if _debug_int_ % 10 == 0:
-        #    print(cutoff)
         new_candidate_peptides = {key:value for (key,value) in candidate_peptides.items() 
                                   if value.linear_score >= cutoff}
     return new_candidate_peptides
@@ -206,7 +135,6 @@ def spectral_convolution_likely_weights(spectrum):
                 cvs[w] += 1
 
     return cvs
-
 
 def remove_out_of_band_values(cvs):
     # delete values < 57
@@ -250,11 +178,7 @@ def leaderboard_cyclopeptide_seqencing(spectrum, cutoff, convoluted_weights_cuto
     leader_peptide_score = 0
     parent_mass = spectrum[len(spectrum)-1]
 
-    global _debug_int_
-
     while len(candidate_peptides) > 0:
-        _debug_int_ += 1
-
         candidate_peptides = expand_search(candidate_peptides, spectrum)
         peps_to_remove = []
         for pi in candidate_peptides.values():
@@ -273,9 +197,6 @@ def leaderboard_cyclopeptide_seqencing(spectrum, cutoff, convoluted_weights_cuto
             candidate_peptides.pop(i, None)
         candidate_peptides = trim_candidate_peptides_list(candidate_peptides, cutoff)
 
-        #if _debug_int_ % 10 == 0:
-        #    print(" ".join(candidate_peptides))
-
     return leader_peptides                
 
 if __name__ == "__main__":
@@ -293,8 +214,6 @@ if __name__ == "__main__":
         spectrum = [int(i) for i in spectrum_line.split(" ")]
 
         sequences = leaderboard_cyclopeptide_seqencing(spectrum, leaderboard_cutoff, convoluted_weights_cutoff)
-        #leader = convert_amino_acid_strs_to_weights([sequences])[0]
-        #print(leader)
         for s in sequences:
             print(s.peptide_string)
 
